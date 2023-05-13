@@ -29,7 +29,7 @@ class _OrderWidgetState extends State<OrderWidget> {
         status = 'Төлбөр төлөгдсөн';
         break;
       case OrderStatus.shipping:
-        color = BColors.primaryNavyBlack;
+        color = Colors.purple;
         status = 'Хүргэлтэнд гарсан';
         break;
       case OrderStatus.completed:

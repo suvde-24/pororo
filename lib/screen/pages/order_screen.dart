@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pororo/widgets/order_widget.dart';
 
 import '../../controller/user_controller.dart';
 import '../../utils/b_colors.dart';
@@ -14,27 +15,44 @@ class OrderScreen extends StatelessWidget {
       builder: (context, data, child) {
         if (data.isEmpty) return const LoginRequiredScreen();
 
-        return SizedBox(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.height,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 30),
-              Image.asset('assets/icons/emoji.png'),
-              const SizedBox(height: 10),
-              Text(
-                'Захиалгын мэдээлэл олдсонгүй.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: BColors.primaryNavyBlack,
+        return ValueListenableBuilder(
+          valueListenable: UserController.instance.userOrders,
+          builder: (context, data1, child) {
+            if (data1.isEmpty) {
+              return SizedBox(
+                width: double.infinity,
+                height: MediaQuery.of(context).size.height,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 30),
+                    Image.asset('assets/icons/emoji.png'),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Захиалгын мэдээлэл олдсонгүй.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: BColors.primaryNavyBlack,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+              );
+            }
+
+            return ListView.separated(
+              shrinkWrap: true,
+              itemCount: data1.length,
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+              itemBuilder: (context, index) {
+                return OrderWidget(order: data1.elementAt(index));
+              },
+              separatorBuilder: (context, index) => Divider(color: BColors.secondarySoftGrey, height: 30, thickness: 1),
+            );
+          },
         );
       },
     );

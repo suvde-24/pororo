@@ -5,6 +5,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 import '../models/cart.dart';
 import '../models/favorite.dart';
+import '../models/order.dart' as model;
 import 'database.dart';
 
 class UserController {
@@ -156,17 +157,26 @@ class UserController {
     // EasyLoading.showToast('Тавтай морил', dismissOnTap: true);
 
     fetchCarts();
+    fetchOrders();
     fetchFavorites();
   }
 
   // User action query
 
-  CollectionReference carts = Database.firestore.collection('carts');
   CollectionReference orders = Database.firestore.collection('orders');
+  CollectionReference orderItems = Database.firestore.collection('order_items');
+  CollectionReference transactions = Database.firestore.collection('transactions');
+  CollectionReference carts = Database.firestore.collection('carts');
   CollectionReference favorites = Database.firestore.collection('favorites');
 
   ValueNotifier<List<Cart>> cartItems = ValueNotifier([]);
   ValueNotifier<List<Favorite>> favoriteItems = ValueNotifier([]);
+  ValueNotifier<List<model.Order>> userOrders = ValueNotifier([]);
+
+  double get totalCartPrice => cartItems.value.fold(
+        0,
+        (previousValue, element) => previousValue + (element.product.value?.discountedTotalPrice ?? 1) * element.count.value,
+      );
 
   Future<List<Cart>> fetchCarts() async {
     final result = await carts.where('customer_id', isEqualTo: uid).get();
@@ -176,8 +186,17 @@ class UserController {
     return data;
   }
 
-  void fetchOrders() async {
-    await orders.where('customer_id', isEqualTo: uid).get();
+  Future<List<model.Order>> fetchOrders() async {
+    final result = await orders.where('customer_id', isEqualTo: uid).get();
+    List<model.Order> data = result.docs.map((e) => model.Order.fromSnapshot(e)).toList();
+    for (var item in data) {
+      final result = await orderItems.where('order_id', isEqualTo: item.id).get();
+      List<model.OrderItem> items = result.docs.map((e) => model.OrderItem.fromSnapshot(e)).toList();
+      item.orderItems = items;
+    }
+    userOrders.value = data;
+
+    return data;
   }
 
   Future<List<Favorite>> fetchFavorites() async {
@@ -224,6 +243,17 @@ class UserController {
     }
   }
 
+  Future<bool> updateCartItem(String docId, int quantity) async {
+    try {
+      EasyLoading.show();
+      await carts.doc(docId).update({'count': quantity});
+      EasyLoading.dismiss();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> removeFromFavorites(String docId) async {
     try {
       await favorites.doc(docId).delete();
@@ -235,5 +265,66 @@ class UserController {
   }
 
   // Order
-  void newOrder() {}
+  Future<bool> newOrder() async {
+    EasyLoading.show(status: 'Түр хүлээнэ үү...');
+    //
+    final result = await orders.add({
+      'created_at': Timestamp.now(),
+      'customer_id': uid,
+      'modified_at': Timestamp.now(),
+      'shipping_id': null,
+      'status': 'pending',
+      'total_payment': totalCartPrice,
+      'transaction_id': null,
+    });
+    model.Order newOrder = model.Order.fromSnapshot(await result.get());
+    List<model.OrderItem> items = [];
+    //
+    final transactionResult = await transactions.add({
+      'amount': newOrder.totalPayment,
+      'created_at': Timestamp.now(),
+      'modified_at': Timestamp.now(),
+      'order_id': newOrder.id,
+      'status': 'pending',
+    });
+    await orders.doc(newOrder.id).update({'transaction_id': transactionResult.id});
+    newOrder.transactionId = transactionResult.id;
+    //
+    for (var item in cartItems.value) {
+      final json = {
+        'created_at': Timestamp.now(),
+        'order_id': newOrder.id,
+        'product_id': item.productId,
+        'quantity': item.count.value,
+      };
+      final result = await orderItems.add(json);
+      model.OrderItem newOrderItem = model.OrderItem.fromSnapshot(await result.get());
+      items.add(newOrderItem);
+    }
+    //
+    newOrder.orderItems = items;
+    userOrders.value = [newOrder, ...userOrders.value];
+    //
+    final queryCarts = await carts.where('customer_id', isEqualTo: uid).get();
+    for (var e in queryCarts.docs) {
+      carts.doc(e.id).delete();
+    }
+    cartItems.value = [];
+    //
+    EasyLoading.dismiss();
+    return true;
+  }
+
+  Future<void> cancelOrder(String orderId, String transactionId) async {
+    EasyLoading.show(status: 'Түр хүлээнэ үү...');
+    await orders.doc(orderId).update({'status': 'canceled', 'modified_at': Timestamp.now()});
+    await transactions.doc(transactionId).update({'status': 'canceled', 'modified_at': Timestamp.now()});
+
+    final canceledOrder = userOrders.value.firstWhere((e) => e.id == orderId);
+    canceledOrder.status = model.OrderStatus.canceled;
+    userOrders.value = [...userOrders.value.where((e) => e.id != orderId).toList(), canceledOrder];
+    EasyLoading.dismiss();
+
+    return;
+  }
 }

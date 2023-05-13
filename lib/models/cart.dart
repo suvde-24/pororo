@@ -6,16 +6,18 @@ import 'package:pororo/models/product.dart';
 class Cart {
   String id;
   String productId;
-  int count;
+  ValueNotifier<int> count = ValueNotifier(1);
   ValueNotifier<Product?> product = ValueNotifier(null);
 
   Cart({
     required this.id,
     required this.productId,
-    required this.count,
+    required int count,
     Product? product,
   }) {
+    this.count.value = count;
     this.product.value = product;
+    if (this.product.value == null) fetchProductData();
   }
 
   factory Cart.fromSnapshot(DocumentSnapshot data) {
@@ -28,4 +30,10 @@ class Cart {
 
     product.value = await ProductController().getProduct(productId);
   }
+
+  void minus() {
+    count.value--;
+  }
+
+  void plus() => count.value++;
 }

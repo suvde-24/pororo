@@ -23,6 +23,8 @@ class Product {
     this.rate,
   });
 
+  double get discountedTotalPrice => price - (discount ?? 0);
+
   factory Product.fromSnapshot(DocumentSnapshot data) {
     dynamic json = data.data();
     return Product(

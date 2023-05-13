@@ -233,4 +233,7 @@ class UserController {
       return false;
     }
   }
+
+  // Order
+  void newOrder() {}
 }

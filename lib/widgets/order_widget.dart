@@ -5,6 +5,7 @@ import 'package:pororo/utils/b_colors.dart';
 import 'package:scale_button/scale_button.dart';
 
 import '../models/order.dart';
+import 'alert_dialog.dart';
 import 'product_item.dart';
 import 'shimmer_product.dart';
 
@@ -195,7 +196,7 @@ class _OrderWidgetState extends State<OrderWidget> {
                           crossAxisSpacing: 13,
                           childAspectRatio: 0.6,
                           physics: const ClampingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(25, 25, 25, 100),
+                          padding: EdgeInsets.fromLTRB(25, 25, 25, widget.order.status == OrderStatus.pending ? 100 : 25),
                           children: widget.order.orderItems.map((e) {
                             return ValueListenableBuilder(
                               valueListenable: e.product,
@@ -216,7 +217,17 @@ class _OrderWidgetState extends State<OrderWidget> {
                           child: ScaleButton(
                             bound: 0.1,
                             onTap: () async {
-                              await UserController.instance.cancelOrder(widget.order.id, widget.order.transactionId!);
+                              await showDialog(
+                                context: context,
+                                builder: (context) => CustomAlertDialog(
+                                  header: 'Анхааруулга',
+                                  title: 'Та захиалгаа цуцлах гэж байна',
+                                  text: 'Анхаар та захиалгаа цуцлах гэж байна.',
+                                  actionTitle: 'Цуцлах',
+                                  action: () async => await UserController.instance.cancelOrder(widget.order.id, widget.order.transactionId!),
+                                ),
+                              );
+
                               Navigator.of(context).pop();
                             },
                             child: Container(

@@ -166,6 +166,7 @@ class UserController {
   CollectionReference orders = Database.firestore.collection('orders');
   CollectionReference orderItems = Database.firestore.collection('order_items');
   CollectionReference transactions = Database.firestore.collection('transactions');
+  CollectionReference shipping = Database.firestore.collection('shipping');
   CollectionReference carts = Database.firestore.collection('carts');
   CollectionReference favorites = Database.firestore.collection('favorites');
 
@@ -289,6 +290,17 @@ class UserController {
     });
     await orders.doc(newOrder.id).update({'transaction_id': transactionResult.id});
     newOrder.transactionId = transactionResult.id;
+    //
+    final shippingResult = await shipping.add({
+      'created_at': Timestamp.now(),
+      'customer': newOrder.customerId,
+      'modified_at': Timestamp.now(),
+      'shipping_address': currentUserData.value['address'],
+      'shipping_amount': 0,
+      'shipping_status': 'pending',
+    });
+    await orders.doc(newOrder.id).update({'shipping_id': shippingResult.id});
+    newOrder.shippingId = shipping.id;
     //
     for (var item in cartItems.value) {
       final json = {
